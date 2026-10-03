@@ -121,27 +121,71 @@ For these short learning runs, rerun training if interrupted.
 - [ ] Compare cluster proportions, spread, overall mean and variance.
 - [ ] Verify generation works from a saved checkpoint in a new process.
 
-## Slurm template
+## SCAI Slurm job: one A100
 
-Edit `train.slurm` for your GPU partition, account, module/container setup and
-GPU resource naming. To request specifically an A100, follow your cluster's
-GPU-type instructions. The generic `--gres=gpu:1` does not guarantee an A100.
-Create the log directory before submission:
+`train.slurm` requests one node, one task, one A100 GPU, two CPU cores,
+8 GB of host RAM and 30 minutes. It trains and then samples on the same allocation.
+A startup check requires PyTorch >= 2.0, working CUDA and exactly one visible
+A100 GPU, and rejects GPU names identifying MIG instances.
+
+[SCAI's public specifications](https://scai.sorbonne-universite.fr/computing-power)
+list NVIDIA A100-SXM4-40GB hardware, but do not publish Slurm partition, account,
+QoS or GPU resource names. The script assumes `--gres=gpu:a100:1`; verify the
+actual GPU type and partition on the cluster before your first submission:
+
+```bash
+sinfo -N -o '%P %N %G %f'
+```
+
+Use the GPU type shown in the GRES column. No partition, account or QoS is
+hard-coded. If the site's defaults support your A100 request, submit from DM_ex:
 
 ```bash
 mkdir -p outputs
 sbatch train.slurm
 ```
 
-The template uses `.venv/bin/python` by default. To use another environment:
+The script requests email on job completion or failure (`END,FAIL`), after
+both training and sampling finish. A blank recipient placeholder is provided
+in `train.slurm` as `##SBATCH --mail-user=`. Fill in your email and remove one
+leading `#` to activate it, or specify your recipient when submitting:
+
+```bash
+sbatch --mail-user=YOUR_EMAIL train.slurm
+```
+
+Replace `YOUR_EMAIL` with your address. Without `--mail-user`, Slurm defaults
+to the submitting username using the cluster's configured mail domain.
+Delivery requires the cluster's Slurm mail service to be configured. These
+options apply to newly submitted jobs.
+
+Otherwise provide your confirmed partition and GPU type at submission; the
+following capitalized values are placeholders, not SCAI configuration:
+
+```bash
+sbatch --partition=YOUR_A100_PARTITION --gres=gpu:YOUR_A100_TYPE:1 train.slurm
+```
+
+Add `--account=YOUR_ACCOUNT` and/or `--qos=YOUR_QOS` if your access requires them.
+For untyped GPU resources, use `--gres=gpu:1` together with a confirmed A100-only
+partition, node selection or advertised constraint. The startup check detects a
+wrong GPU after allocation; it does not replace scheduler resource selection.
+
+Slurm opens `outputs/slurm-JOB_ID.log` before the script starts, so create
+`outputs` before calling `sbatch`. Training and sampling results go to
+`outputs/run1`, which is ignored by Git. Repeated jobs overwrite that run's results.
+
+The script uses `.venv/bin/python` by default. To use another CUDA-enabled
+PyTorch environment:
 
 ```bash
 DM_PYTHON=/absolute/path/to/environment/bin/python sbatch train.slurm
 ```
 
-For interactive GPU learning, use your site's allocation instructions. Within
-the allocated shell, verify `nvidia-smi` and `torch.cuda.is_available()` before
-training. See the [Slurm documentation](https://slurm.schedmd.com/sbatch.html).
+Use SCAI's documented module or container setup if your account requires it.
+The script preserves Slurm's `CUDA_VISIBLE_DEVICES`; do not select a physical
+GPU number yourself. For interactive learning, follow the site's allocation
+instructions. See the [Slurm submission documentation](https://slurm.schedmd.com/sbatch.html).
 
 ## References
 
