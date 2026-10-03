@@ -33,17 +33,17 @@ host unless you use your cluster's supported compute-node development setup.
 
 ### 1. Generate data: `data.py`
 
-- [ ] Implement `sample_data`: choose uniformly among (-1,-1), (-1,1), (1,-1),
+- [*] Implement `sample_data`: choose uniformly among (-1,-1), (-1,1), (1,-1),
       (1,1), and add Gaussian noise with standard deviation 0.1.
-- [ ] Return float32 tensors of shape `[B, 2]` on the requested device.
-- [ ] Run `python check_forward.py --part data` and inspect `outputs/checks/data.png`.
+- [*] Return float32 tensors of shape `[B, 2]` on the requested device.
+- [*] Run `python check_forward.py --part data` and inspect `outputs/checks/data.png`.
 
 ### 2. Forward diffusion: `diffusion.py`
 
-- [ ] Implement `make_schedule` and `q_sample`.
-- [ ] Use mathematical indexing: arrays of length `T+1`, clean data at index 0,
+- [*] Implement `make_schedule` and `q_sample`.
+- [*] Use mathematical indexing: arrays of length `T+1`, clean data at index 0,
       and training indices `1..T`.
-- [ ] Implement the following equations in PyTorch:
+- [*] Implement the following equations in PyTorch:
 
     alpha_t = 1 - beta_t
     alpha_bar_t = product(alpha_s, s=1..t)
@@ -61,12 +61,12 @@ not required. Statistical checks use a fixed seed and finite-sample tolerances.
 
 ### 3. Noise predictor: `model.py`
 
-- [ ] Implement `NoisePredictor.forward`: concatenate the noisy point with `t/T`.
-- [ ] Run `python check_forward.py --part model`.
-- [ ] Read `train.py`; explain the target and each tensor's shape.
-- [ ] Use the five-update VS Code debug configuration. Set a breakpoint after
+- [*] Implement `NoisePredictor.forward`: concatenate the noisy point with `t/T`.
+- [*] Run `python check_forward.py --part model`.
+- [*] Read `train.py`; explain the target and each tensor's shape.
+- [*] Use the five-update VS Code debug configuration. Set a breakpoint after
       `predicted_noise = model(xt, t)` and inspect x0, t, noise, xt and predicted_noise.
-- [ ] Confirm that the model gets neither x0 nor the true sampled noise as inputs.
+- [*] Confirm that the model gets neither x0 nor the true sampled noise as inputs.
 
 The provided training objective is mean squared error between sampled and
 predicted noise. A zero predictor has expected elementwise MSE about one.
