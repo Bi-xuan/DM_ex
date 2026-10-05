@@ -6,7 +6,7 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 # Set your address here, or pass DM_NOTIFY_EMAIL=you@example.com when launching.
 # Leave empty to disable notifications. Requires configured outgoing system mail.
-DM_NOTIFY_EMAIL="${DM_NOTIFY_EMAIL:-}"
+DM_NOTIFY_EMAIL="${DM_NOTIFY_EMAIL:-liubixuan214@gmail.com}"
 DM_MAIL_COMMAND=""
 DM_STAGE="environment check"
 
