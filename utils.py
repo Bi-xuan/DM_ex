@@ -19,11 +19,20 @@ def seed_everything(seed):
 
 def get_device(name):
     if name == "auto":
-        name = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            name = "cuda"
+        elif torch.backends.mps.is_available():
+            name = "mps"
+        else:
+            name = "cpu"
     if name == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable. Allocate a GPU and activate its PyTorch environment.")
+    if name == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("MPS is unavailable. Use an MPS-enabled PyTorch environment on a supported Mac, or --device cpu.")
     if name == "cuda":
         return torch.device("cuda", torch.cuda.current_device())
+    if name == "mps":
+        return torch.device("mps", 0)
     return torch.device(name)
 
 

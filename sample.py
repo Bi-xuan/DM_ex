@@ -13,7 +13,7 @@ from utils import get_device, scatter_panels, seed_everything
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, default=Path("outputs/run1/model.pt"))
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
     parser.add_argument("--num-samples", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--output", type=Path, default=Path("outputs/run1/generated.png"))

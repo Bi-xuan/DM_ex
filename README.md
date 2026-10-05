@@ -20,14 +20,37 @@ For CUDA, choose a PyTorch installation compatible with your cluster's NVIDIA
 driver using the [official installer](https://pytorch.org/get-started/locally/).
 The CPU path works for learning and checking the equations.
 
+### Local Apple Silicon GPU (M1/M2/M3/M4)
+
+Use PyTorch's `mps` device to run on the Mac's GPU. CUDA is for NVIDIA GPUs.
+From this folder, activate the environment and verify MPS availability:
+
+```bash
+source .venv/bin/activate
+python -c 'import torch; print("PyTorch:", torch.__version__); print("MPS available:", torch.backends.mps.is_available())'
+```
+
+Then check the equations on CPU and train/sample on the GPU:
+
+```bash
+python check_forward.py --part all --device cpu
+python train.py --device mps --steps 5000 --batch-size 256 --seed 42 --output outputs/m1
+python sample.py --device mps --checkpoint outputs/m1/model.pt --num-samples 2000 --output outputs/m1/generated.png
+```
+
+`--device auto` selects CUDA, then MPS, then CPU according to availability.
+For this small 2D network, GPU overhead can outweigh the compute savings;
+compare with `--device cpu` if speed matters. Outputs go to `outputs/m1` so
+they do not overwrite the default `outputs/run1` run.
+
 Open this folder in VS Code. Install Python and Python Debugger, then select your
 interpreter with **Python: Select Interpreter**. `.vscode/launch.json` includes
 CPU forward-check and five-update training debug configurations.
 
 With [Remote SSH](https://code.visualstudio.com/docs/remote/ssh), code and Python
-run on the connected host. A login-node connection does not allocate a GPU.
-Run GPU commands inside an allocation; the VS Code debugger stays on its connected
-host unless you use your cluster's supported compute-node development setup.
+run on the connected host. On DGX, the administrator confirms that you can run
+your code directly without Slurm commands. The VS Code debugger also runs on DGX
+when you connect to it. On other clusters, follow their GPU allocation instructions.
 
 ## Exercises, in order
 
@@ -92,7 +115,7 @@ appropriate alternative sampler; simply skipping iterations is not DDIM.
 
 ### 5. Train and generate
 
-From an allocated GPU shell (or use `--device cpu`):
+From your DGX shell with a CUDA-enabled environment activated (or use `--device cpu`):
 
 ```bash
 python train.py --device cuda --steps 5000 --batch-size 256 --seed 42
@@ -121,71 +144,72 @@ For these short learning runs, rerun training if interrupted.
 - [ ] Compare cluster proportions, spread, overall mean and variance.
 - [ ] Verify generation works from a saved checkpoint in a new process.
 
-## SCAI Slurm job: one A100
+## Direct training on DGX
 
-`train.slurm` requests one node, one task, one A100 GPU, two CPU cores,
-8 GB of host RAM and 30 minutes. It trains and then samples on the same allocation.
-A startup check requires PyTorch >= 2.0, working CUDA and exactly one visible
-A100 GPU, and rejects GPU names identifying MIG instances.
-
-[SCAI's public specifications](https://scai.sorbonne-universite.fr/computing-power)
-list NVIDIA A100-SXM4-40GB hardware, but do not publish Slurm partition, account,
-QoS or GPU resource names. The script assumes `--gres=gpu:a100:1`; verify the
-actual GPU type and partition on the cluster before your first submission:
+The DGX administrator confirms that this machine runs code directly without
+Slurm. Activate your CUDA-enabled PyTorch environment, inspect GPU usage with
+`nvidia-smi`, and follow the administrator's instructions for sharing GPUs.
+Then run from DM_ex:
 
 ```bash
-sinfo -N -o '%P %N %G %f'
+bash train.sh
 ```
 
-Use the GPU type shown in the GRES column. No partition, account or QoS is
-hard-coded. If the site's defaults support your A100 request, submit from DM_ex:
+`train.sh` uses `python` from your active environment, checks PyTorch >= 2.0 and
+CUDA availability, then trains for 5000 steps with batch size 256 and seed 42.
+It samples only after training succeeds. It runs from its own directory, so
+you can also invoke it by path from another folder. To select an interpreter:
+
+```bash
+DM_PYTHON=/absolute/path/to/environment/bin/python bash train.sh
+```
+
+The script preserves `CUDA_VISIBLE_DEVICES`. If you have permission to use
+GPU 0, for example:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 bash train.sh
+```
+
+Multiple visible GPUs are supported, but training uses the current CUDA device
+(normally the first visible GPU). The script defaults to two OpenMP threads;
+set `OMP_NUM_THREADS` to override this. It does not enforce scheduler-style
+CPU, memory or time limits.
+
+Training and sampling results go to `outputs/run1`, which is ignored by Git.
+Repeated runs overwrite that run's results. For a background run that continues
+after you disconnect SSH, with console output captured in a log:
 
 ```bash
 mkdir -p outputs
-sbatch train.slurm
+nohup bash train.sh > outputs/train.log 2>&1 &
 ```
 
-The script requests email on job completion or failure (`END,FAIL`), after
-both training and sampling finish. A blank recipient placeholder is provided
-in `train.slurm` as `##SBATCH --mail-user=`. Fill in your email and remove one
-leading `#` to activate it, or specify your recipient when submitting:
+Inspect `outputs/train.log` to follow a background run.
+
+### Optional email notifications
+
+Set `DM_NOTIFY_EMAIL` in `train.sh` or pass it when launching:
 
 ```bash
-sbatch --mail-user=YOUR_EMAIL train.slurm
+DM_NOTIFY_EMAIL=you@example.com bash train.sh
 ```
 
-Replace `YOUR_EMAIL` with your address. Without `--mail-user`, Slurm defaults
-to the submitting username using the cluster's configured mail domain.
-Delivery requires the cluster's Slurm mail service to be configured. These
-options apply to newly submitted jobs.
-
-Otherwise provide your confirmed partition and GPU type at submission; the
-following capitalized values are placeholders, not SCAI configuration:
+For a background run:
 
 ```bash
-sbatch --partition=YOUR_A100_PARTITION --gres=gpu:YOUR_A100_TYPE:1 train.slurm
+mkdir -p outputs
+DM_NOTIFY_EMAIL=you@example.com nohup bash train.sh > outputs/train.log 2>&1 &
 ```
 
-Add `--account=YOUR_ACCOUNT` and/or `--qos=YOUR_QOS` if your access requires them.
-For untyped GPU resources, use `--gres=gpu:1` together with a confirmed A100-only
-partition, node selection or advertised constraint. The startup check detects a
-wrong GPU after allocation; it does not replace scheduler resource selection.
-
-Slurm opens `outputs/slurm-JOB_ID.log` before the script starts, so create
-`outputs` before calling `sbatch`. Training and sampling results go to
-`outputs/run1`, which is ignored by Git. Repeated jobs overwrite that run's results.
-
-The script uses `.venv/bin/python` by default. To use another CUDA-enabled
-PyTorch environment:
-
-```bash
-DM_PYTHON=/absolute/path/to/environment/bin/python sbatch train.slurm
-```
-
-Use SCAI's documented module or container setup if your account requires it.
-The script preserves Slurm's `CUDA_VISIBLE_DEVICES`; do not select a physical
-GPU number yourself. For interactive learning, follow the site's allocation
-instructions. See the [Slurm submission documentation](https://slurm.schedmd.com/sbatch.html).
+The script attempts one notification after training and sampling finish, or on
+an execution failure. The email includes the host, stage, exit code and results
+directory. Notifications require `mail` or `mailx` and working outgoing mail on
+DGX; having the command installed alone does not guarantee delivery. Ask the
+administrator whether outgoing mail is configured. If neither command is
+available, the script warns and continues without email. A mail-command failure
+does not change the training/sampling exit code. Notifications default to off;
+an abrupt machine shutdown or forced kill can prevent them from running.
 
 ## References
 

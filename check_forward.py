@@ -110,7 +110,7 @@ def check_reverse(device, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--part", choices=("data", "forward", "model", "reverse", "all"), default="forward")
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="cpu")
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="cpu")
     parser.add_argument("--output", type=Path, default=Path("outputs/checks"))
     args = parser.parse_args()
     seed_everything(42)
