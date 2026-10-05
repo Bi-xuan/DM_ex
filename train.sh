@@ -4,6 +4,8 @@
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate DM_ex
 # Set your address here, or pass DM_NOTIFY_EMAIL=you@example.com when launching.
 # Leave empty to disable notifications. Requires configured outgoing system mail.
 DM_NOTIFY_EMAIL="${DM_NOTIFY_EMAIL:-liubixuan214@gmail.com}"
